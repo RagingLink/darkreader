@@ -1,7 +1,10 @@
 import '../support/polyfills';
 import {DEFAULT_THEME} from '../../../src/defaults';
-import {isFirefox} from '../../../src/utils/platform';
 import {createOrUpdateDynamicTheme, removeDynamicTheme} from '../../../src/inject/dynamic-theme';
+import {injectProxy} from '../../../src/inject/dynamic-theme/stylesheet-proxy';
+import {isFirefox} from '../../../src/utils/platform';
+import {stubChromeRuntimeGetURL} from '../support/background-stub';
+import {getJSEchoURL} from '../support/echo-client';
 import {multiline, timeout, waitForEvent} from '../support/test-utils';
 
 const theme = {
@@ -10,6 +13,21 @@ const theme = {
     darkSchemeTextColor: 'white',
 };
 let container: HTMLElement;
+
+beforeAll(() => {
+    const loader = multiline(
+        '(function loader() {',
+        '    document && document.currentScript && document.currentScript.remove();',
+        '    const argString = document && document.currentScript && document.currentScript.dataset.arg;',
+        '    if (argString !== undefined) {',
+        '        const arg = JSON.parse(argString);',
+        `        (${injectProxy.toString()})(arg);`,
+        '    }',
+        '})()',
+    );
+    const url = getJSEchoURL(loader);
+    stubChromeRuntimeGetURL('inject/proxy.js', url);
+});
 
 beforeEach(() => {
     container = document.body;
@@ -845,9 +863,9 @@ describe('CSS VARIABLES OVERRIDE', () => {
         );
         createOrUpdateDynamicTheme(theme, null, false);
         await waitForEvent('__darkreader__test__asyncQueueComplete');
-        expect(getComputedStyle(container.querySelector('.icon1')).backgroundImage).toMatch(/^url\("data:image\/svg\+xml;base64,.*"\)$/);
-        expect(getComputedStyle(container.querySelector('.icon2')).backgroundImage).toMatch(/^url\("data:image\/svg\+xml;base64,.*"\)$/);
-        expect(getComputedStyle(container.querySelector('.icon3')).backgroundImage).toMatch(/^url\("data:image\/svg\+xml;base64,.*"\), url\("data:image\/svg\+xml;base64,.*"\)$/);
+        expect(getComputedStyle(container.querySelector('.icon1')).backgroundImage).toMatch(/^url\("blob:.*"\)$/);
+        expect(getComputedStyle(container.querySelector('.icon2')).backgroundImage).toMatch(/^url\("blob:.*"\)$/);
+        expect(getComputedStyle(container.querySelector('.icon3')).backgroundImage).toMatch(/^url\("blob:.*"\), url\("blob:.*"\)$/);
     });
 
     it('should handle variables with gradients and images', async () => {
@@ -873,7 +891,7 @@ describe('CSS VARIABLES OVERRIDE', () => {
         );
         createOrUpdateDynamicTheme(theme, null, false);
         await waitForEvent('__darkreader__test__asyncQueueComplete');
-        expect(getComputedStyle(container.querySelector('.icon')).backgroundImage).toMatch(/^url\("data:image\/svg\+xml;base64,.*"\), linear-gradient\(rgb\(204, 0, 0\), rgb\(0, 0, 0\)\)$/);
+        expect(getComputedStyle(container.querySelector('.icon')).backgroundImage).toMatch(/^url\("blob:.*"\), linear-gradient\(rgb\(204, 0, 0\), rgb\(0, 0, 0\)\)$/);
     });
 
     it('should handle asynchronous variable type resolution', async () => {

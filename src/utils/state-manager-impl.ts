@@ -10,7 +10,7 @@ import {PromiseBarrier} from './promise-barrier';
  *  - no concurrent reads (calls to s.c.l.get()): if loadState() is called
  *    repeatedly before previous call is complete, this class will wait for
  *    active read to complete and will resolve all loadState() calls at once.
- *  - all simultaniously active calls to saveState() and loadState() wait for
+ *  - all simultaneously active calls to saveState() and loadState() wait for
  *    data to settle and resolve only after data is guaranteed to be coherent.
  *  - data saved with the browser always wins (because JS typically has only
  *    default values and to ensure that if the same class exists in multiple
@@ -85,6 +85,8 @@ import {PromiseBarrier} from './promise-barrier';
  *   from browser to ensure data coherence.
  */
 
+declare const __TEST__: boolean;
+
 enum StateManagerImplState {
     INITIAL = 0,
     LOADING = 1,
@@ -92,17 +94,17 @@ enum StateManagerImplState {
     SAVING = 3,
     SAVING_OVERRIDE = 4,
     ONCHANGE_RACE = 5,
-    RECOVERY = 6,
+    RECOVERY = 6
 }
 
-export class StateManagerImpl<T> {
+export class StateManagerImpl<T extends Record<string, unknown>> {
     private localStorageKey: string;
     private parent;
     private defaults: T;
     private logWarn: (log: string) => void;
 
     private meta: StateManagerImplState;
-    private barrier: PromiseBarrier<void, void> = null;
+    private barrier: PromiseBarrier<void, void> | null = null;
 
     private storage: {
         get: (storageKey: string, callback: (items: { [key: string]: any }) => void) => void;
@@ -142,7 +144,7 @@ export class StateManagerImpl<T> {
     private releaseBarrier() {
         const barrier = this.barrier;
         this.barrier = new PromiseBarrier();
-        barrier.resolve();
+        barrier!.resolve();
     }
 
     private notifyListeners() {
@@ -215,24 +217,25 @@ export class StateManagerImpl<T> {
             case StateManagerImplState.LOADING:
                 // Need to wait for active read operation to end
                 this.logWarn('StateManager.saveState was called before StateManager.loadState() resolved. Possible data race! Loading data instead.');
-                return this.barrier.entry();
-            case StateManagerImplState.READY:
+                return this.barrier!.entry();
+            case StateManagerImplState.READY: {
                 this.meta = StateManagerImplState.SAVING;
-                const entry = this.barrier.entry();
+                const entry = this.barrier!.entry();
                 this.saveStateInternal();
                 return entry;
+            }
             case StateManagerImplState.SAVING:
                 // Another save is in progress
                 this.meta = StateManagerImplState.SAVING_OVERRIDE;
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.SAVING_OVERRIDE:
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.ONCHANGE_RACE:
                 this.logWarn('StateManager.saveState was called during active read/write operation. Possible data race! Loading data instead.');
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.RECOVERY:
                 this.logWarn('StateManager.saveState was called during active read operation. Possible data race! Waiting for data load instead.');
-                return this.barrier.entry();
+                return this.barrier!.entry();
         }
     }
 
@@ -253,6 +256,7 @@ export class StateManagerImpl<T> {
                 case StateManagerImplState.ONCHANGE_RACE:
                     this.meta = StateManagerImplState.RECOVERY;
                     this.loadStateInternal();
+                // eslint-disable-next-line no-fallthrough
                 case StateManagerImplState.RECOVERY:
                     this.meta = StateManagerImplState.READY;
                     this.applyState(data[this.localStorageKey]);
@@ -264,31 +268,35 @@ export class StateManagerImpl<T> {
 
     async loadState(): Promise<void> {
         switch (this.meta) {
-            case StateManagerImplState.INITIAL:
+            case StateManagerImplState.INITIAL: {
                 this.meta = StateManagerImplState.LOADING;
-                const entry = this.barrier.entry();
+                const entry = this.barrier!.entry();
                 this.loadStateInternal();
                 return entry;
+            }
             case StateManagerImplState.READY:
                 return;
             case StateManagerImplState.SAVING:
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.SAVING_OVERRIDE:
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.LOADING:
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.ONCHANGE_RACE:
-                return this.barrier.entry();
+                return this.barrier!.entry();
             case StateManagerImplState.RECOVERY:
-                return this.barrier.entry();
+                return this.barrier!.entry();
         }
     }
 
-    addChangeListener(callback: () => void) {
+    addChangeListener(callback: () => void): void {
         this.listeners.add(callback);
     }
 
-    getStateForTesting() {
+    getStateForTesting(): string {
+        if (!__TEST__) {
+            return '';
+        }
         switch (this.meta) {
             case StateManagerImplState.INITIAL:
                 return 'Initial';

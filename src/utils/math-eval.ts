@@ -1,6 +1,6 @@
-// evalMath is a function that's able to evaluates a mathematical expression and return it's ouput.
+// evalMath is a function that's able to evaluates a mathematical expression and return it's output.
 //
-// Internally it uses the Shunting Yard algoritm. First it produces a reverse polish notation(RPN) stack.
+// Internally it uses the Shunting Yard algorithm. First it produces a reverse polish notation(RPN) stack.
 // Example: 1 + 2 * 3 -> [1, 2, 3, *, +] which with parentheses means 1 (2 3 *) +
 //
 // Then it evaluates the RPN stack and returns the output.
@@ -10,7 +10,7 @@ export function evalMath(expression: string): number {
     // The working stack where new tokens are pushed.
     const workingStack: string[] = [];
 
-    let lastToken: string;
+    let lastToken: string | undefined;
     // Iterate over the expression.
     for (let i = 0, len = expression.length; i < len; i++) {
         const token = expression[i];
@@ -33,8 +33,8 @@ export function evalMath(expression: string): number {
 
                 // Is the current operation equal or less than the current operation?
                 // Then move that operation to the rpnStack.
-                if (op.lessOrEqualThan(currentOp)) {
-                    rpnStack.push(workingStack.shift());
+                if (op!.lessOrEqualThan(currentOp)) {
+                    rpnStack.push(workingStack.shift()!);
                 } else {
                     break;
                 }
@@ -83,16 +83,16 @@ class Operator {
         this.execMethod = method;
     }
 
-    public exec(left: number, right: number): number {
+    exec(left: number, right: number): number {
         return this.execMethod(left, right);
     }
 
-    public lessOrEqualThan(op: Operator) {
+    lessOrEqualThan(op: Operator) {
         return this.precendce <= op.precendce;
     }
 }
 
-const operators: Map<string, Operator> = new Map([
+const operators: Readonly<Map<string, Operator>> = new Map([
     ['+', new Operator(1, (left: number, right: number): number => left + right)],
     ['-', new Operator(1, (left: number, right: number): number => left - right)],
     ['*', new Operator(2, (left: number, right: number): number => left * right)],

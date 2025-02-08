@@ -1,34 +1,39 @@
-import type {ParsedColorSchemeConfig} from './utils/colorscheme-parser';
 import type {FilterMode} from './generators/css-filter';
-import type {MessageType} from './utils/message';
-import type {AutomationMode} from './utils/automation';
 import type {ThemeEngine} from './generators/theme-engines';
+import type {AutomationMode} from './utils/automation';
+import type {ParsedColorSchemeConfig} from './utils/colorscheme-parser';
+import type {DebugMessageTypeBGtoCS, DebugMessageTypeBGtoUI, DebugMessageTypeCStoBG, MessageTypeBGtoCS, MessageTypeBGtoUI, MessageTypeCStoBG, MessageTypeCStoUI, MessageTypeUItoBG, MessageTypeUItoCS} from './utils/message';
+
+export type ColorScheme = 'dark' | 'light';
 
 export interface ExtensionData {
     isEnabled: boolean;
     isReady: boolean;
+    isAllowedFileSchemeAccess: boolean;
     settings: UserSettings;
     news: News[];
     shortcuts: Shortcuts;
     colorScheme: ParsedColorSchemeConfig;
-    forcedScheme: 'dark' | 'light';
-    devtools: {
-        dynamicFixesText: string;
-        filterFixesText: string;
-        staticThemesText: string;
-    };
+    forcedScheme: 'dark' | 'light' | null;
     activeTab: TabInfo;
+    uiHighlights: string[];
+}
+
+export interface DevToolsData {
+    dynamicFixesText: string;
+    filterFixesText: string;
+    staticThemesText: string;
 }
 
 export interface TabData {
-    type: MessageType;
+    type: MessageTypeBGtoCS;
     data?: any;
 }
 
 export interface ExtensionActions {
     changeSettings(settings: Partial<UserSettings>): void;
-    setTheme(theme: Partial<FilterConfig>): void;
-    setShortcut(command: string, shortcut: string): void;
+    setTheme(theme: Partial<Theme>): void;
+    setShortcut(command: string, shortcut: string): Promise<string | null>;
     toggleActiveTab(): void;
     markNewsAsRead(ids: string[]): void;
     markNewsAsDisplayed(ids: string[]): void;
@@ -39,12 +44,17 @@ export interface ExtensionActions {
     resetDevInversionFixes(): void;
     applyDevStaticThemes(text: string): Promise<void>;
     resetDevStaticThemes(): void;
+    hideHighlights(ids: string[]): void;
 }
 
 export interface ExtWrapper {
     data: ExtensionData;
     actions: ExtensionActions;
 }
+
+export type ViewProps = ExtWrapper & {
+    fonts?: string[];
+};
 
 export interface Theme {
     mode: FilterMode;
@@ -69,11 +79,10 @@ export interface Theme {
     immediateModify: boolean;
 }
 
-export type FilterConfig = Theme;
-
 export interface CustomSiteConfig {
     url: string[];
-    theme: FilterConfig;
+    theme: Theme;
+    builtIn?: boolean;
 }
 
 export interface ThemePreset {
@@ -90,14 +99,15 @@ export interface Automation {
 }
 
 export interface UserSettings {
+    schemeVersion: number;
     enabled: boolean;
     fetchNews: boolean;
-    theme: FilterConfig;
+    theme: Theme;
     presets: ThemePreset[];
     customThemes: CustomSiteConfig[];
-    siteList: string[];
-    siteListEnabled: string[];
-    applyToListedOnly: boolean;
+    enabledByDefault: boolean;
+    enabledFor: string[];
+    disabledFor: string[];
     changeBrowserTheme: boolean;
     syncSettings: boolean;
     syncSitesFixes: boolean;
@@ -105,6 +115,7 @@ export interface UserSettings {
     time: TimeSettings;
     location: LocationSettings;
     previewNewDesign: boolean;
+    previewNewestDesign: boolean;
     enableForPDF: boolean;
     enableForProtectedPages: boolean;
     enableContextMenus: boolean;
@@ -117,23 +128,66 @@ export interface TimeSettings {
 }
 
 export interface LocationSettings {
-    latitude: number;
-    longitude: number;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 export interface TabInfo {
     url: string;
+    id: number | null;
+    documentId: string | null;
     isProtected: boolean;
-    isInjected: boolean;
+    isInjected: boolean | null;
     isInDarkList: boolean;
-    isDarkThemeDetected: boolean;
+    isDarkThemeDetected: boolean | null;
 }
 
-export interface Message {
-    type: MessageType;
+export interface MessageCStoBG {
+    id?: string;
+    scriptId?: string;
+    type: MessageTypeCStoBG;
     data?: any;
-    id?: number;
+}
+
+export interface MessageUItoCS {
+    type: MessageTypeUItoCS;
+}
+
+export interface MessageCStoUI {
+    type: MessageTypeCStoUI;
+    data: any;
+}
+
+export interface MessageBGtoCS {
+    id?: string;
+    scriptId?: string;
+    type: MessageTypeBGtoCS;
+    data?: any;
     error?: any;
+}
+
+export interface MessageUItoBG {
+    type: MessageTypeUItoBG;
+    data?: any;
+    error?: any;
+}
+
+export interface MessageBGtoUI {
+    type: MessageTypeBGtoUI;
+    data?: any;
+}
+
+export interface DebugMessageBGtoCS {
+    type: DebugMessageTypeBGtoCS;
+}
+
+export interface DebugMessageBGtoUI {
+    type: DebugMessageTypeBGtoUI;
+}
+
+export interface DebugMessageCStoBG {
+    type: DebugMessageTypeCStoBG;
+    data?: any;
 }
 
 export interface Shortcuts {
@@ -147,6 +201,7 @@ export interface DynamicThemeFix {
     ignoreInlineStyle: string[];
     ignoreImageAnalysis: string[];
     disableStyleSheetsProxy: boolean;
+    disableCustomElementRegistryProxy: boolean;
 }
 
 export interface InversionFix {
@@ -155,6 +210,14 @@ export interface InversionFix {
     noinvert: string[];
     removebg: string[];
     css: string;
+}
+
+export interface DetectorHint {
+    url: string[];
+    target: string;
+    match: string[];
+    noDarkTheme: boolean;
+    systemTheme: boolean;
 }
 
 export interface StaticTheme {

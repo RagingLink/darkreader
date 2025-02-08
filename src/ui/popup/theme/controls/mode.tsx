@@ -1,13 +1,15 @@
 import {m} from 'malevic';
+
 import {ThemeEngine} from '../../../../generators/theme-engines';
 import {getLocalMessage} from '../../../../utils/locales';
 import {DropDown} from '../../../controls';
-import ThemeControl from './theme-control';
 import {openExtensionPage} from '../../../utils';
+
+import ThemeControl from './theme-control';
 
 export default function Mode(props: {mode: ThemeEngine; onChange: (mode: ThemeEngine) => void}) {
     async function openCSSEditor() {
-        await openExtensionPage('stylesheet-editor/index.html');
+        await openExtensionPage('stylesheet-editor');
     }
 
     const modes = [
@@ -20,7 +22,7 @@ export default function Mode(props: {mode: ThemeEngine; onChange: (mode: ThemeEn
         <ThemeControl label="Mode">
             <div class="mode-control-container">
                 <DropDown
-                    selected={modes.find((m) => m.id === props.mode).id}
+                    selected={modes.find((m) => m.id === props.mode)!.id}
                     options={modes}
                     onChange={props.onChange}
                 />

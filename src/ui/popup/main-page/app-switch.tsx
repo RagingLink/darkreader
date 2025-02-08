@@ -1,12 +1,10 @@
 import {m} from 'malevic';
-import {getLocalMessage} from '../../../utils/locales';
-import {MultiSwitch} from '../../controls';
-import ControlGroup from '../control-group';
-import type {ViewProps} from '../types';
-import WatchIcon from './watch-icon';
-import SunMoonIcon from './sun-moon-icon';
-import SystemIcon from './system-icon';
+
+import type {ViewProps} from '../../../definitions';
 import {AutomationMode} from '../../../utils/automation';
+import {getLocalMessage} from '../../../utils/locales';
+import {ControlGroup, MultiSwitch} from '../../controls';
+import {SunMoonIcon, SystemIcon, WatchIcon} from '../../icons';
 
 export default function AppSwitch(props: ViewProps) {
     const isOn = props.data.settings.enabled === true && !props.data.settings.automation.enabled;
@@ -82,7 +80,7 @@ export default function AppSwitch(props: ViewProps) {
                         {(isTimeAutomation
                             ? <WatchIcon hours={now.getHours()} minutes={now.getMinutes()} />
                             : (isLocationAutomation
-                                ? (<SunMoonIcon date={now} latitude={props.data.settings.location.latitude} longitude={props.data.settings.location.longitude} />)
+                                ? (<SunMoonIcon date={now} latitude={props.data.settings.location.latitude!} longitude={props.data.settings.location.longitude!} />)
                                 : <SystemIcon />))}
                     </span>
                 </MultiSwitch>

@@ -3,11 +3,11 @@
  * which is in StateManagerImpl class.
  */
 
+import {isNonPersistent} from './platform';
 import {StateManagerImpl} from './state-manager-impl';
 
-import {isNonPersistent} from './platform';
 
-export class StateManager<T> {
+export class StateManager<T extends Record<string, unknown>> {
     private stateManager: StateManagerImpl<T> | null;
 
     constructor(localStorageKey: string, parent: any, defaults: T, logWarn: (log: string) => void){
@@ -31,13 +31,13 @@ export class StateManager<T> {
         }
     }
 
-    async saveState() {
+    async saveState(): Promise<void> {
         if (this.stateManager) {
             return this.stateManager.saveState();
         }
     }
 
-    async loadState() {
+    async loadState(): Promise<void> {
         if (this.stateManager) {
             return this.stateManager.loadState();
         }

@@ -1,28 +1,28 @@
-/** @typedef {import('karma').Config & Record<string, unknown>} LocalConfig */
+/** @typedef {import('karma').Config & {headless: boolean, debug: boolean, ci: boolean, coverage: boolean}} LocalConfig */
 /** @typedef {import('karma').ConfigOptions} ConfigOptions */
 
-import fs from 'fs';
-import os from 'os';
-import rollupPluginIstanbul from 'rollup-plugin-istanbul2';
-import rollupPluginNodeResolve from '@rollup/plugin-node-resolve';
+import fs from 'node:fs';
+import os from 'node:os';
+
 import rollupPluginReplace from '@rollup/plugin-replace';
 import rollupPluginTypescript from '@rollup/plugin-typescript';
+import rollupPluginIstanbul from 'rollup-plugin-istanbul';
 import typescript from 'typescript';
 
+import {absolutePath} from '../../tasks/paths.js';
+
 import {createEchoServer} from './support/echo-server.js';
-import paths from '../../tasks/paths.js';
-const {rootPath} = paths;
 
 /**
- * @param {LocalConfig} config
+ * @param {Partial<LocalConfig>} config
  * @param {Record<string, string>} env
  * @returns {ConfigOptions}
  */
 export function configureKarma(config, env) {
-    const headless = config.headless || env.KARMA_HEADLESS || false;
+    const headless = config.headless || Boolean(env.KARMA_HEADLESS) || false;
 
     /** @type {ConfigOptions} */
-    let options = {
+    const options = {
         failOnFailingTestSuite: true,
         failOnEmptyTestSuite: true,
         basePath: '../..',
@@ -34,33 +34,32 @@ export function configureKarma(config, env) {
         ],
         plugins: [
             'karma-chrome-launcher',
-            'karma-coverage',
             'karma-firefox-launcher',
+            process.platform === 'darwin' ? 'karma-safari-launcher' : null,
             'karma-rollup-preprocessor',
             'karma-jasmine',
             'karma-spec-reporter',
-        ],
+        ].filter(Boolean),
         preprocessors: {
             '**/*.+(ts|tsx)': ['rollup'],
         },
         rollupPreprocessor: {
             plugins: [
-                rollupPluginNodeResolve(),
                 rollupPluginTypescript({
                     typescript,
-                    tsconfig: rootPath('tests/inject/tsconfig.json'),
+                    tsconfig: absolutePath('tests/inject/tsconfig.json'),
                     cacheDir: `${fs.realpathSync(os.tmpdir())}/darkreader_typescript_test_cache`,
                 }),
                 rollupPluginReplace({
                     preventAssignment: true,
-                    '__DEBUG__': 'false',
-                    '__FIREFOX__': 'false',
-                    '__CHROMIUM_MV2__': 'true',
-                    '__CHROMIUM_MV3__': 'false',
-                    '__THUNDERBIRD__': 'false',
-                    '__PORT__': '-1',
-                    '__TEST__': 'true',
-                    '__WATCH__': 'false',
+                    __DEBUG__: false,
+                    __FIREFOX_MV2__: false,
+                    __CHROMIUM_MV2__: false,
+                    __CHROMIUM_MV3__: false,
+                    __THUNDERBIRD__: false,
+                    __PORT__: '-1',
+                    __TEST__: true,
+                    __WATCH__: false,
                 }),
             ],
             output: {
@@ -93,17 +92,21 @@ export function configureKarma(config, env) {
         options.customLaunchers = {};
         options.browsers = [];
 
+        // CHROME_TEST and FIREFOX_TEST are used in CI
+        const chrome = env.CHROME_TEST;
+        const firefox = env.FIREFOX_TEST;
+        const all = !chrome && !firefox;
         // Chrome
-        if (env.CHROME_TEST) {
+        if (chrome || all) {
             options.customLaunchers['CIChromeHeadless'] = {
                 base: 'ChromeHeadless',
-                flags: ['--no-sandbox', '--disable-setuid-sandbox']
+                flags: ['--no-sandbox', '--disable-setuid-sandbox'],
             };
             options.browsers.push('CIChromeHeadless');
         }
 
         // Firefox
-        if (env.FIREFOX_TEST) {
+        if (firefox || all) {
             options.customLaunchers['CIFirefoxHeadless'] = {
                 base: 'FirefoxHeadless',
             };
@@ -117,6 +120,7 @@ export function configureKarma(config, env) {
     }
 
     if (config.coverage) {
+        options.plugins.push('karma-coverage');
         const plugin = rollupPluginIstanbul({
             exclude: ['tests/**/*.*', 'src/inject/dynamic-theme/stylesheet-proxy.ts'],
         });
@@ -124,7 +128,7 @@ export function configureKarma(config, env) {
         options.reporters.push('coverage');
         options.coverageReporter = {
             type: 'html',
-            dir: 'tests/inject/coverage/'
+            dir: 'tests/inject/coverage/',
         };
     }
 

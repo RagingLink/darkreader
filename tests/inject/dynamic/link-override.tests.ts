@@ -1,9 +1,9 @@
 import {DEFAULT_THEME} from '../../../src/defaults';
 import {createOrUpdateDynamicTheme, removeDynamicTheme} from '../../../src/inject/dynamic-theme';
 import {isSafari} from '../../../src/utils/platform';
-import {multiline, timeout, waitForEvent} from '../support/test-utils';
 import {resetChromeRuntimeMessageStub, stubBackgroundFetchResponse, stubChromeRuntimeMessage} from '../support/background-stub';
 import {getCSSEchoURL} from '../support/echo-client';
+import {multiline, timeout, waitForEvent} from '../support/test-utils';
 
 const theme = {
     ...DEFAULT_THEME,
@@ -214,6 +214,7 @@ describe('LINK STYLES', () => {
         );
         createOrUpdateDynamicTheme(theme, null, false);
 
+        await waitForEvent('__darkreader__test__dynamicUpdateComplete');
         await timeout(1000);
         expect(getComputedStyle(container.querySelector('h1')).backgroundColor).toBe('rgb(102, 102, 102)');
         expect(getComputedStyle(container.querySelector('h1')).color).toBe('rgb(255, 255, 255)');
